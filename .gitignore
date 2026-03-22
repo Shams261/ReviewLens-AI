@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+backend/reviewlens.db
+
+# Node
+node_modules/
+dist/
+
+# Environment
+.env
+.env.local
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+.history/
+
+# Test/Build caches
+.pytest_cache/
