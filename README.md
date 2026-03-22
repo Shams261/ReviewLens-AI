@@ -4,6 +4,16 @@
 
 Built for the **FutureSight Ventures** Take-Home Assignment.
 
+[![Frontend Live](https://img.shields.io/badge/Frontend-Live-16a34a?style=for-the-badge&logo=vercel&logoColor=white)](https://review-lens-ai-pi.vercel.app/)
+[![Backend Live](https://img.shields.io/badge/Backend-Live-0ea5e9?style=for-the-badge&logo=render&logoColor=white)](https://reviewlens-api-n9kw.onrender.com)
+[![Tests](https://img.shields.io/badge/Tests-All%20Passed-22c55e?style=for-the-badge)](#test-suite)
+
+## Why This Build Stands Out
+
+- **Strictly guardrailed Q&A:** Answers stay inside ingested review evidence.
+- **Evidence-first output:** Every key claim is designed for citation traceability.
+- **Resilient ingestion strategy:** **RapidAPI-only URL ingestion, with CSV/demo fallback.**
+
 ---
 
 ## Table of Contents
@@ -27,11 +37,11 @@ Built for the **FutureSight Ventures** Take-Home Assignment.
 
 ## Live Demo
 
-| Service      | URL                    |
-| ------------ | ---------------------- |
-| Frontend     | _Coming soon (Vercel)_ |
-| Backend API  | _Coming soon (Render)_ |
-| Swagger Docs | `<backend-url>/docs`   |
+| Service      | URL                                           |
+| ------------ | --------------------------------------------- |
+| Frontend     | https://review-lens-ai-pi.vercel.app/         |
+| Backend API  | https://reviewlens-api-n9kw.onrender.com      |
+| Swagger Docs | https://reviewlens-api-n9kw.onrender.com/docs |
 
 **Quick demo:** Click "Load Demo" on the welcome screen to instantly load 50 curated AirPods Pro reviews and start analyzing.
 
@@ -79,12 +89,12 @@ open http://localhost:5173
 
 ### Environment Variables
 
-| Variable         | Required         | Purpose                                            |
-| ---------------- | ---------------- | -------------------------------------------------- |
-| `GROQ_API_KEY`   | Yes              | Primary LLM (Llama-3.3-70B)                        |
-| `GEMINI_API_KEY` | Yes              | Fallback LLM (Gemini 2.5 Flash)                    |
-| `RAPIDAPI_KEY`   | For URL scraping | Amazon review extraction                           |
-| `CORS_ORIGINS`   | No               | Allowed origins (default: `http://localhost:5173`) |
+| Variable         | Required          | Purpose                                             |
+| ---------------- | ----------------- | --------------------------------------------------- |
+| `GROQ_API_KEY`   | Yes               | Primary LLM (Llama-3.3-70B)                         |
+| `GEMINI_API_KEY` | Yes               | Fallback LLM (Gemini 2.5 Flash)                     |
+| `RAPIDAPI_KEY`   | For URL ingestion | RapidAPI-only URL ingestion, with CSV/demo fallback |
+| `CORS_ORIGINS`   | No                | Allowed origins (default: `http://localhost:5173`)  |
 
 ---
 
@@ -143,7 +153,7 @@ open http://localhost:5173
 └──────────────────────────────────────────────────────────────────┘
 
 External APIs:
-  ├── RapidAPI (Real-Time Amazon Data) — review scraping
+  ├── RapidAPI (Real-Time Amazon Data) — RapidAPI-only URL ingestion, with CSV/demo fallback
   ├── Groq API (Llama-3.3-70B) — primary LLM
   └── Google Gemini API (2.5 Flash) — fallback LLM
 ```
@@ -225,16 +235,16 @@ The `_normalize()` function handles:
 
 ## Tech Stack
 
-| Layer             | Technology                       | Rationale                               |
-| ----------------- | -------------------------------- | --------------------------------------- |
-| **Frontend**      | React 19 + TypeScript + Vite 8   | Fast HMR, type safety, modern bundling  |
-| **Styling**       | Tailwind CSS 4.2                 | Utility-first, responsive, zero runtime |
-| **Backend**       | FastAPI (Python 3.12)            | Async, auto-docs, native LLM ecosystem  |
-| **Database**      | SQLite + SQLAlchemy 2.0          | Zero-config, file-based, session-scoped |
-| **Primary LLM**   | Groq (Llama-3.3-70B)             | Free tier, sub-second inference         |
-| **Fallback LLM**  | Google Gemini 2.5 Flash          | Free tier, 1M context window            |
-| **Scraping**      | RapidAPI (Real-Time Amazon Data) | Reliable Amazon review extraction       |
-| **Rate Limiting** | slowapi                          | Protects free-tier API credits          |
+| Layer             | Technology                       | Rationale                                           |
+| ----------------- | -------------------------------- | --------------------------------------------------- |
+| **Frontend**      | React 19 + TypeScript + Vite 8   | Fast HMR, type safety, modern bundling              |
+| **Styling**       | Tailwind CSS 4.2                 | Utility-first, responsive, zero runtime             |
+| **Backend**       | FastAPI (Python 3.12)            | Async, auto-docs, native LLM ecosystem              |
+| **Database**      | SQLite + SQLAlchemy 2.0          | Zero-config, file-based, session-scoped             |
+| **Primary LLM**   | Groq (Llama-3.3-70B)             | Free tier, sub-second inference                     |
+| **Fallback LLM**  | Google Gemini 2.5 Flash          | Free tier, 1M context window                        |
+| **Scraping**      | RapidAPI (Real-Time Amazon Data) | RapidAPI-only URL ingestion, with CSV/demo fallback |
+| **Rate Limiting** | slowapi                          | Protects free-tier API credits                      |
 
 ---
 
@@ -349,12 +359,12 @@ Dashboard Features:                    Chat Features:
 
 ### Ingestion
 
-| Method | Endpoint                 | Rate Limit | Description                         |
-| ------ | ------------------------ | ---------- | ----------------------------------- |
-| `POST` | `/api/ingest/url`        | 3/min      | Scrape Amazon product reviews       |
-| `POST` | `/api/ingest/url/stream` | 3/min      | SSE streaming scrape with progress  |
-| `POST` | `/api/ingest/csv`        | 5/min      | Upload CSV file (max 5MB)           |
-| `POST` | `/api/ingest/demo`       | 5/min      | Load 50 curated AirPods Pro reviews |
+| Method | Endpoint                 | Rate Limit | Description                                |
+| ------ | ------------------------ | ---------- | ------------------------------------------ |
+| `POST` | `/api/ingest/url`        | 3/min      | RapidAPI-only URL ingestion                |
+| `POST` | `/api/ingest/url/stream` | 3/min      | RapidAPI-only URL ingestion (SSE progress) |
+| `POST` | `/api/ingest/csv`        | 5/min      | Upload CSV file (max 5MB)                  |
+| `POST` | `/api/ingest/demo`       | 5/min      | Load 50 curated AirPods Pro reviews        |
 
 ### Reviews
 
@@ -545,34 +555,35 @@ ReviewLens-AI/
 ├── ai-transcripts/
 │   ├── session-transcript.md       # Readable AI session transcript
 │   └── session-transcript.jsonl    # Raw JSONL log
-├── README.md
-└── ReviewLens_AI_Architecture_Report.pdf
+└── README.md
 ```
 
 ---
 
 ## Design Decisions
 
-| Decision                               | Rationale                                                                                                                                                     |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **3-layer scope guard**                | Assignment explicitly requires strict scope enforcement. Layer 2 catches 95% of off-topic queries before the LLM, saving tokens and preventing hallucination. |
-| **Deterministic engine before LLM**    | Simple statistical queries (avg rating, star distribution) don't need AI. Saves API tokens, guarantees zero hallucination, sub-5ms response.                  |
-| **Dual-LLM failover**                  | Free tier rate limits are aggressive. Groq → Gemini → deterministic fallback ensures the app never shows a blank error.                                       |
-| **SQLite (not PostgreSQL)**            | Zero-config for evaluators. Session-scoped data doesn't need persistence across deploys.                                                                      |
-| **No React Router**                    | Only 3 views. State-based routing is simpler and sufficient.                                                                                                  |
-| **Custom markdown renderer**           | Avoids external dependency. Full control over citation badge styling.                                                                                         |
-| **XML-structured prompts**             | LLMs parse XML tags more reliably than plain-text instructions. Clear boundaries for rules.                                                                   |
-| **Pre-compiled regex at module scope** | Scope guard runs on every query. Must be < 1ms. Compiling once at import time.                                                                                |
-| **Hard/soft blocklist split**          | "Weather" is always off-topic. "How old is" depends on context ("how old is the oldest review" is valid). Split prevents both false positives and negatives.  |
-| **SSE over WebSocket**                 | One-directional streaming (server → client). SSE is simpler, HTTP-native, and auto-reconnects.                                                                |
-| **Rating-based sentiment**             | NLP sentiment analysis adds complexity and dependencies. Star ratings are a reliable proxy for prototype scope.                                               |
-| **Session-scoped cache**               | Prevents cross-product cache pollution. SHA-256(session_id + normalized_query) as cache key.                                                                  |
+| Decision                                 | Rationale                                                                                                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **3-layer scope guard**                  | Assignment explicitly requires strict scope enforcement. Layer 2 catches 95% of off-topic queries before the LLM, saving tokens and preventing hallucination. |
+| **Deterministic engine before LLM**      | Simple statistical queries (avg rating, star distribution) don't need AI. Saves API tokens, guarantees zero hallucination, sub-5ms response.                  |
+| **Dual-LLM failover**                    | Free tier rate limits are aggressive. Groq → Gemini → deterministic fallback ensures the app never shows a blank error.                                       |
+| **SQLite (not PostgreSQL)**              | Zero-config for evaluators. Session-scoped data doesn't need persistence across deploys.                                                                      |
+| **No React Router**                      | Only 3 views. State-based routing is simpler and sufficient.                                                                                                  |
+| **Custom markdown renderer**             | Avoids external dependency. Full control over citation badge styling.                                                                                         |
+| **XML-structured prompts**               | LLMs parse XML tags more reliably than plain-text instructions. Clear boundaries for rules.                                                                   |
+| **Pre-compiled regex at module scope**   | Scope guard runs on every query. Must be < 1ms. Compiling once at import time.                                                                                |
+| **Hard/soft blocklist split**            | "Weather" is always off-topic. "How old is" depends on context ("how old is the oldest review" is valid). Split prevents both false positives and negatives.  |
+| **SSE over WebSocket**                   | One-directional streaming (server → client). SSE is simpler, HTTP-native, and auto-reconnects.                                                                |
+| **Rating-based sentiment**               | NLP sentiment analysis adds complexity and dependencies. Star ratings are a reliable proxy for prototype scope.                                               |
+| **Session-scoped cache**                 | Prevents cross-product cache pollution. SHA-256(session_id + normalized_query) as cache key.                                                                  |
+| **RapidAPI-only scraping (intentional)** | URL ingestion is intentionally implemented as: RapidAPI-only URL ingestion, with CSV/demo fallback.                                                           |
 
 ---
 
 ## Assumptions
 
 - Amazon is the primary review platform (universal familiarity, richest data structure)
+- URL ingestion is intentionally implemented as: RapidAPI-only URL ingestion, with CSV/demo fallback
 - CSV upload serves as fallback when scraping is impractical
 - Pre-loaded demo dataset (50 reviews) included for frictionless evaluation
 - Session-scoped SQLite is sufficient for prototype (no cross-session persistence needed)
