@@ -6,32 +6,62 @@ Built for the **FutureSight Ventures** Take-Home Assignment.
 
 [![Frontend Live](https://img.shields.io/badge/Frontend-Live-16a34a?style=for-the-badge&logo=vercel&logoColor=white)](https://review-lens-ai-pi.vercel.app/)
 [![Backend Live](https://img.shields.io/badge/Backend-Live-0ea5e9?style=for-the-badge&logo=render&logoColor=white)](https://reviewlens-api-n9kw.onrender.com)
-[![Tests](https://img.shields.io/badge/Tests-All%20Passed-22c55e?style=for-the-badge)](#test-suite)
+[![Tests](https://img.shields.io/badge/Tests-291%20Passed-22c55e?style=for-the-badge)](#test-suite)
+[![Coverage](https://img.shields.io/badge/Coverage-94%25-brightgreen?style=for-the-badge)](#test-suite)
+[![Python](https://img.shields.io/badge/Python-3.12-3776ab?style=for-the-badge&logo=python&logoColor=white)](#tech-stack)
+[![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react&logoColor=black)](#tech-stack)
+
+---
+
+## Preview
+
+<p align="center">
+  <img src="docs/welcome-screen.png" alt="Welcome Screen" width="90%" />
+</p>
+<p align="center"><em>Welcome Screen — Paste an Amazon URL, upload CSV, or load demo data instantly</em></p>
+
+<p align="center">
+  <img src="docs/dashboard.png" alt="Analytics Dashboard" width="90%" />
+</p>
+<p align="center"><em>Dashboard — Stat cards, star distribution, sentiment breakdown, keyword cloud, review browser</em></p>
+
+<p align="center">
+  <img src="docs/chat-interface.png" alt="AI Chat Interface" width="90%" />
+</p>
+<p align="center"><em>AI Chat — SSE streaming, citation badges, confidence scoring, scope guard in action</em></p>
+
+---
 
 ## Why This Build Stands Out
 
-- **Strictly guardrailed Q&A:** Answers stay inside ingested review evidence.
-- **Evidence-first output:** Every key claim is designed for citation traceability.
-- **Resilient ingestion strategy:** **RapidAPI-only URL ingestion, with CSV/demo fallback.**
+- **Strictly guardrailed Q&A:** Answers stay inside ingested review evidence — 188 tests enforce this.
+- **Evidence-first output:** Every key claim links back to a specific `[Review #N]` citation.
+- **4-level failover:** Scope Guard → Cache → Deterministic Engine → Groq LLM → Gemini LLM → Data Summary. The app **never** shows a blank error.
+- **Zero cost:** Entire stack runs on free tiers (Groq, Gemini, Vercel, Render).
 
 ---
 
 ## Table of Contents
 
+- [Preview](#preview)
 - [Live Demo](#live-demo)
+- [Assumptions & Constraints](#assumptions--constraints)
 - [Quick Start](#quick-start)
 - [Architecture Overview](#architecture-overview)
 - [Three-Layer Scope Guard](#three-layer-scope-guard)
 - [Tech Stack](#tech-stack)
-- [User Flow](#user-flow)
-- [Data Flow](#data-flow)
+- [User Flow Diagram](#user-flow-diagram)
+- [Data Flow Diagram](#data-flow-diagram)
 - [API Reference](#api-reference)
+- [Error Handling](#error-handling)
 - [Frontend Components](#frontend-components)
 - [LLM Strategy](#llm-strategy)
 - [Test Suite](#test-suite)
 - [Project Structure](#project-structure)
 - [Design Decisions](#design-decisions)
 - [Future Enhancements](#future-enhancements)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -43,7 +73,24 @@ Built for the **FutureSight Ventures** Take-Home Assignment.
 | Backend API  | https://reviewlens-api-n9kw.onrender.com      |
 | Swagger Docs | https://reviewlens-api-n9kw.onrender.com/docs |
 
-**Quick demo:** Click "Load Demo" on the welcome screen to instantly load 50 curated AirPods Pro reviews and start analyzing.
+> **Quick demo:** Click **"Load Demo"** on the welcome screen to instantly load 50 curated AirPods Pro reviews and start analyzing. No API keys needed.
+
+> **Note:** The Render free tier sleeps after 15 minutes of inactivity. The first request may take ~30s to wake the server.
+
+---
+
+## Assumptions & Constraints
+
+These assumptions shaped every design decision in this project. They're listed upfront so evaluators understand the scope boundaries before diving into the architecture.
+
+| Assumption | Rationale |
+| --- | --- |
+| Amazon is the primary review platform | Universal familiarity, richest data structure (ratings, verified purchase, helpful votes) |
+| URL ingestion uses RapidAPI exclusively | Reliable, structured API. CSV upload and demo data serve as fallbacks when scraping is impractical or API keys are unavailable |
+| Session-scoped SQLite is sufficient | Prototype doesn't need cross-session persistence. Zero-config for evaluators — no database setup required |
+| No user authentication | Prototype scope. Rate limiting by IP is sufficient without user accounts |
+| Zero financial cost | Entire stack runs on free tiers: Groq (LLM), Gemini (fallback LLM), Vercel (frontend), Render (backend) |
+| Pre-loaded demo dataset (50 reviews) | Included for frictionless evaluation without requiring any API keys |
 
 ---
 
@@ -89,16 +136,61 @@ open http://localhost:5173
 
 ### Environment Variables
 
-| Variable         | Required          | Purpose                                             |
-| ---------------- | ----------------- | --------------------------------------------------- |
-| `GROQ_API_KEY`   | Yes               | Primary LLM (Llama-3.3-70B)                         |
-| `GEMINI_API_KEY` | Yes               | Fallback LLM (Gemini 2.5 Flash)                     |
-| `RAPIDAPI_KEY`   | For URL ingestion | RapidAPI-only URL ingestion, with CSV/demo fallback |
-| `CORS_ORIGINS`   | No                | Allowed origins (default: `http://localhost:5173`)  |
+| Variable         | Required          | Purpose                                    |
+| ---------------- | ----------------- | ------------------------------------------ |
+| `GROQ_API_KEY`   | Yes               | Primary LLM (Llama-3.3-70B via Groq)      |
+| `GEMINI_API_KEY` | Yes               | Fallback LLM (Gemini 2.5 Flash)           |
+| `RAPIDAPI_KEY`   | For URL ingestion | Amazon review scraping via RapidAPI        |
+| `CORS_ORIGINS`   | No                | Allowed origins (default: localhost:5173)  |
+
+> Without `RAPIDAPI_KEY`, URL ingestion is disabled — CSV upload and demo data still work fully.
 
 ---
 
 ## Architecture Overview
+
+```mermaid
+graph TB
+    subgraph Frontend ["Frontend (React 19 + Vite)"]
+        WS[Welcome Screen] --> DASH[Dashboard Analytics]
+        WS --> CHAT[Chat Interface<br/>SSE Streaming + Markdown]
+    end
+
+    subgraph Backend ["Backend (FastAPI)"]
+        IR[Ingest Router] --> SS[Scraper Service<br/>RapidAPI]
+        IR --> IS[Ingestion Service<br/>CSV / Demo]
+        RR[Reviews Router] --> AS[Analytics Service]
+        CR[Chat Router] --> CP[Chat Pipeline]
+
+        subgraph Pipeline ["Chat Pipeline"]
+            SG[Layer 2: Scope Guard<br/>Rule-based, &lt;1ms] --> CACHE[Cache Check<br/>SHA-256 hash]
+            CACHE --> DET[Deterministic Engine<br/>12 patterns, &lt;5ms]
+            DET --> LLM[Layer 1: LLM<br/>Groq → Gemini]
+            LLM --> OV[Layer 3: Output<br/>Validation]
+        end
+    end
+
+    subgraph Storage ["Data Layer"]
+        DB[(SQLite + SQLAlchemy<br/>sessions / reviews / chat_messages)]
+    end
+
+    subgraph External ["External APIs"]
+        RAPID[RapidAPI<br/>Real-Time Amazon Data]
+        GROQ[Groq API<br/>Llama-3.3-70B]
+        GEMINI[Google Gemini<br/>2.5 Flash]
+    end
+
+    Frontend -->|HTTP / SSE| Backend
+    SS --> RAPID
+    LLM --> GROQ
+    LLM --> GEMINI
+    IR --> DB
+    AS --> DB
+    CP --> DB
+```
+
+<details>
+<summary><strong>ASCII Version</strong> (for terminals / non-GitHub viewers)</summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -111,7 +203,7 @@ open http://localhost:5173
 └────────────────────────────┬────────────────────────────────────────┘
                              │ HTTP / SSE
 ┌────────────────────────────▼────────────────────────────────────────┐
-│                      BACKEND (FastAPI)                              │
+│                        BACKEND (FastAPI)                            │
 │                                                                     │
 │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────┐   │
 │  │ Ingest   │   │ Reviews  │   │   Chat   │   │   Health     │   │
@@ -153,10 +245,12 @@ open http://localhost:5173
 └──────────────────────────────────────────────────────────────────┘
 
 External APIs:
-  ├── RapidAPI (Real-Time Amazon Data) — RapidAPI-only URL ingestion, with CSV/demo fallback
+  ├── RapidAPI (Real-Time Amazon Data) — URL-based review scraping
   ├── Groq API (Llama-3.3-70B) — primary LLM
   └── Google Gemini API (2.5 Flash) — fallback LLM
 ```
+
+</details>
 
 ---
 
@@ -241,14 +335,14 @@ The `_normalize()` function handles:
 | **Styling**       | Tailwind CSS 4.2                 | Utility-first, responsive, zero runtime             |
 | **Backend**       | FastAPI (Python 3.12)            | Async, auto-docs, native LLM ecosystem              |
 | **Database**      | SQLite + SQLAlchemy 2.0          | Zero-config, file-based, session-scoped             |
-| **Primary LLM**   | Groq (Llama-3.3-70B)             | Free tier, sub-second inference                     |
+| **Primary LLM**   | Groq (Llama-3.3-70B)            | Free tier, sub-second inference                     |
 | **Fallback LLM**  | Google Gemini 2.5 Flash          | Free tier, 1M context window                        |
-| **Scraping**      | RapidAPI (Real-Time Amazon Data) | RapidAPI-only URL ingestion, with CSV/demo fallback |
+| **Scraping**      | RapidAPI (Real-Time Amazon Data) | Reliable structured API for Amazon review extraction|
 | **Rate Limiting** | slowapi                          | Protects free-tier API credits                      |
 
 ---
 
-## User Flow
+## User Flow Diagram
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -287,7 +381,7 @@ Dashboard Features:                    Chat Features:
 
 ---
 
-## Data Flow
+## Data Flow Diagram
 
 ```
                     DATA FLOW DIAGRAM
@@ -359,12 +453,12 @@ Dashboard Features:                    Chat Features:
 
 ### Ingestion
 
-| Method | Endpoint                 | Rate Limit | Description                                |
-| ------ | ------------------------ | ---------- | ------------------------------------------ |
-| `POST` | `/api/ingest/url`        | 3/min      | RapidAPI-only URL ingestion                |
-| `POST` | `/api/ingest/url/stream` | 3/min      | RapidAPI-only URL ingestion (SSE progress) |
-| `POST` | `/api/ingest/csv`        | 5/min      | Upload CSV file (max 5MB)                  |
-| `POST` | `/api/ingest/demo`       | 5/min      | Load 50 curated AirPods Pro reviews        |
+| Method | Endpoint                 | Rate Limit | Description                          |
+| ------ | ------------------------ | ---------- | ------------------------------------ |
+| `POST` | `/api/ingest/url`        | 3/min      | Scrape Amazon reviews via RapidAPI   |
+| `POST` | `/api/ingest/url/stream` | 3/min      | Same as above with SSE progress      |
+| `POST` | `/api/ingest/csv`        | 5/min      | Upload CSV file (max 5MB)            |
+| `POST` | `/api/ingest/demo`       | 5/min      | Load 50 curated AirPods Pro reviews  |
 
 ### Reviews
 
@@ -417,6 +511,33 @@ Dashboard Features:                    Chat Features:
 | `token` | LLM streaming                                         | `{ "content": "token text" }`   |
 | `done`  | Stream complete                                       | Final metadata + citations      |
 | `error` | Failure                                               | `{ "detail": "error message" }` |
+
+---
+
+## Error Handling
+
+The API uses standard HTTP status codes with consistent JSON error bodies.
+
+| Status | When | Example Response |
+| ------ | ---- | ---------------- |
+| `400` | Invalid input (empty query, no reviews in session) | `{ "detail": "Query cannot be empty." }` |
+| `404` | Session not found | `{ "detail": "Session not found." }` |
+| `422` | Validation error (malformed request body) | `{ "detail": [{ "msg": "field required", "type": "value_error" }] }` |
+| `429` | Rate limit exceeded | `{ "detail": "Rate limit exceeded: 10 per 1 minute" }` |
+| `500` | Unexpected server error | `{ "detail": "Internal server error." }` |
+
+### Graceful Degradation
+
+The system is designed to **never return a blank error** for chat queries:
+
+```
+Groq API fails    → automatic failover to Gemini
+Gemini API fails  → deterministic data summary (always succeeds)
+RapidAPI fails    → user can still use CSV upload or demo data
+All LLMs fail     → fallback response with raw review statistics
+```
+
+> Rate limits return a `Retry-After` header indicating when the client can retry.
 
 ---
 
@@ -500,6 +621,9 @@ Dashboard Features:                    Chat Features:
 cd backend
 source venv/bin/activate
 python -m pytest tests/ -v
+
+# With coverage report
+python -m pytest tests/ -v --cov=app --cov-report=term-missing
 ```
 
 ---
@@ -511,6 +635,7 @@ ReviewLens-AI/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py                 # FastAPI app, CORS, lifespan
+│   │   ├── database.py             # SQLite engine, session factory
 │   │   ├── models/
 │   │   │   └── schemas.py          # Session, Review, ChatMessage ORM
 │   │   ├── routers/
@@ -525,7 +650,7 @@ ReviewLens-AI/
 │   │       ├── analytics.py        # Summary computation (188 lines)
 │   │       ├── scraper.py          # Amazon review scraper (259 lines)
 │   │       ├── ingestion.py        # CSV/demo/session management (241 lines)
-│   │       └── mock_reviews.csv    # Demo dataset
+│   │       └── mock_reviews.csv    # Demo dataset (50 AirPods Pro reviews)
 │   ├── tests/
 │   │   ├── conftest.py             # Fixtures, in-memory DB
 │   │   ├── test_scope_guard.py     # 188 tests
@@ -535,8 +660,8 @@ ReviewLens-AI/
 │   │   ├── test_chat.py            # 19 tests
 │   │   └── test_models.py          # 7 tests
 │   ├── requirements.txt
-│   ├── .env.example
-│   └── reviewlens.db               # Auto-created SQLite database
+│   ├── Dockerfile
+│   └── .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx                  # Root component
@@ -551,10 +676,16 @@ ReviewLens-AI/
 │   │       ├── StarBar.tsx         # Rating distribution bar
 │   │       └── TypingDots.tsx      # Chat typing indicator
 │   ├── package.json
+│   ├── vercel.json                  # Vercel deployment config
 │   └── vite.config.ts              # API proxy config
+├── docs/
+│   ├── welcome-screen.png          # Screenshot: welcome page
+│   ├── dashboard.png               # Screenshot: analytics dashboard
+│   └── chat-interface.png          # Screenshot: AI chat with citations
 ├── ai-transcripts/
 │   ├── session-transcript.md       # Readable AI session transcript
 │   └── session-transcript.jsonl    # Raw JSONL log
+├── render.yaml                      # Render deployment config
 └── README.md
 ```
 
@@ -562,34 +693,20 @@ ReviewLens-AI/
 
 ## Design Decisions
 
-| Decision                                 | Rationale                                                                                                                                                     |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Decision                                 | Rationale |
+| ---------------------------------------- | --------- |
 | **3-layer scope guard**                  | Assignment explicitly requires strict scope enforcement. Layer 2 catches 95% of off-topic queries before the LLM, saving tokens and preventing hallucination. |
-| **Deterministic engine before LLM**      | Simple statistical queries (avg rating, star distribution) don't need AI. Saves API tokens, guarantees zero hallucination, sub-5ms response.                  |
-| **Dual-LLM failover**                    | Free tier rate limits are aggressive. Groq → Gemini → deterministic fallback ensures the app never shows a blank error.                                       |
-| **SQLite (not PostgreSQL)**              | Zero-config for evaluators. Session-scoped data doesn't need persistence across deploys.                                                                      |
-| **No React Router**                      | Only 3 views. State-based routing is simpler and sufficient.                                                                                                  |
-| **Custom markdown renderer**             | Avoids external dependency. Full control over citation badge styling.                                                                                         |
-| **XML-structured prompts**               | LLMs parse XML tags more reliably than plain-text instructions. Clear boundaries for rules.                                                                   |
-| **Pre-compiled regex at module scope**   | Scope guard runs on every query. Must be < 1ms. Compiling once at import time.                                                                                |
-| **Hard/soft blocklist split**            | "Weather" is always off-topic. "How old is" depends on context ("how old is the oldest review" is valid). Split prevents both false positives and negatives.  |
-| **SSE over WebSocket**                   | One-directional streaming (server → client). SSE is simpler, HTTP-native, and auto-reconnects.                                                                |
-| **Rating-based sentiment**               | NLP sentiment analysis adds complexity and dependencies. Star ratings are a reliable proxy for prototype scope.                                               |
-| **Session-scoped cache**                 | Prevents cross-product cache pollution. SHA-256(session_id + normalized_query) as cache key.                                                                  |
-| **RapidAPI-only scraping (intentional)** | URL ingestion is intentionally implemented as: RapidAPI-only URL ingestion, with CSV/demo fallback.                                                           |
-
----
-
-## Assumptions
-
-- Amazon is the primary review platform (universal familiarity, richest data structure)
-- URL ingestion is intentionally implemented as: RapidAPI-only URL ingestion, with CSV/demo fallback
-- CSV upload serves as fallback when scraping is impractical
-- Pre-loaded demo dataset (50 reviews) included for frictionless evaluation
-- Session-scoped SQLite is sufficient for prototype (no cross-session persistence needed)
-- Zero financial cost constraint met via free tiers (Groq, Gemini, Vercel, Render)
-- No user authentication required for prototype scope
-- Rate limiting by IP is sufficient (no user accounts)
+| **Deterministic engine before LLM**      | Simple statistical queries (avg rating, star distribution) don't need AI. Saves API tokens, guarantees zero hallucination, sub-5ms response. |
+| **Dual-LLM failover**                    | Free tier rate limits are aggressive. Groq → Gemini → deterministic fallback ensures the app never shows a blank error. |
+| **SQLite (not PostgreSQL)**              | Zero-config for evaluators. Session-scoped data doesn't need persistence across deploys. |
+| **No React Router**                      | Only 3 views. State-based routing is simpler and sufficient. |
+| **Custom markdown renderer**             | Avoids external dependency. Full control over citation badge styling. |
+| **XML-structured prompts**               | LLMs parse XML tags more reliably than plain-text instructions. Clear boundaries for rules. |
+| **Pre-compiled regex at module scope**   | Scope guard runs on every query. Must be < 1ms. Compiling once at import time. |
+| **Hard/soft blocklist split**            | "Weather" is always off-topic. "How old is" depends on context ("how old is the oldest review" is valid). Split prevents both false positives and negatives. |
+| **SSE over WebSocket**                   | One-directional streaming (server → client). SSE is simpler, HTTP-native, and auto-reconnects. |
+| **Rating-based sentiment**               | NLP sentiment analysis adds complexity and dependencies. Star ratings are a reliable proxy for prototype scope. |
+| **Session-scoped cache**                 | Prevents cross-product cache pollution. SHA-256(session_id + normalized_query) as cache key. |
 
 ---
 
@@ -623,10 +740,29 @@ ReviewLens-AI/
 
 ---
 
-## License
+## Contributing
 
-Built for the FutureSight Ventures Take-Home Assessment.
+Contributions are welcome! Here's how to get started:
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/your-feature`
+3. **Commit** your changes: `git commit -m "Add your feature"`
+4. **Push** to the branch: `git push origin feature/your-feature`
+5. **Open** a Pull Request
+
+### Development Guidelines
+
+- Backend tests must pass before PR: `python -m pytest tests/ -v`
+- Frontend must build without errors: `npm run build`
+- Follow existing code style (no linter config yet — use common sense)
+- Add tests for new backend features
 
 ---
 
-**Built with care by Shams Tabrez**
+## License
+
+This project is licensed under the [MIT License](LICENSE). Built for the FutureSight Ventures Take-Home Assessment.
+
+---
+
+<p align="center"><strong>Built with care by Shams Tabrez</strong></p>
