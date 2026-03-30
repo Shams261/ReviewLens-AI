@@ -2,7 +2,7 @@
 
 > **Review Intelligence Portal** — Ingest product reviews from Amazon, CSV, or demo data and analyze them through a guardrailed AI chat interface. Zero hallucinations, only evidence.
 
-Built for the **FutureSight Ventures** Take-Home Assignment.
+Built as a Take-Home Assignment.
 
 [![Frontend Live](https://img.shields.io/badge/Frontend-Live-16a34a?style=for-the-badge&logo=vercel&logoColor=white)](https://review-lens-ai-pi.vercel.app/)
 [![Backend Live](https://img.shields.io/badge/Backend-Live-0ea5e9?style=for-the-badge&logo=render&logoColor=white)](https://reviewlens-api-n9kw.onrender.com)
@@ -761,7 +761,7 @@ Contributions are welcome! Here's how to get started:
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). Built for the FutureSight Ventures Take-Home Assessment.
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 

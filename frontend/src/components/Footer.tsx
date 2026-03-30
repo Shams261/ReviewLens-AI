@@ -37,7 +37,7 @@ export default function Footer() {
             <span className="truncate">All systems operational</span>
             <span className="text-slate-300">|</span>
             <span className="normal-case font-medium tracking-normal text-slate-500 truncate">
-              Built for FutureSight Ventures - Built with{" "}
+              Built with{" "}
               <span className="text-rose-500">❤</span> by Shams
             </span>
           </div>
